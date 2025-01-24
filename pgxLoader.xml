@@ -1,0 +1,58 @@
+<tool id="pgxLoader" name="pgxRpi pgxLodaer" version="0.1.0+galaxy0" python_template_version="3.5" profile="21.05">
+    <requirements>
+        <requirement type="package" version="1.20">bioconductor-pgxrpi</requirement>
+    </requirements>
+    <command detect_errors="exit_code"><![CDATA[
+        Rscript '$run_pgxLodaer.R'
+    ]]></command>
+    <configfiles>
+        <configfile name='run_pgxLodaer.R'><![CDATA[
+            require('pgxRpi', quietly = TRUE)
+
+    ]]></configfile>
+    </configfiles>
+    <inputs>
+        <param name='type' type='select' label='Output data type'>
+            <option value="individuals">individuals</option>
+            <option value="biosamples">biosamples</option>
+            <option value="analyses">analyses</option>
+            <option value="g_variants">genomic variations</option>
+            <option value="cnv_frequency">precomputed CNV frequency data from Progenetix</option>
+            <option value="cnv_fraction">CNV fraction per sample based on Progenetix data</option>
+            <option value="sample_count">count of samples in Progenetix</option>
+        </param>
+        <param name='output' type='select' optional="true" label='Output variant data format'>
+            <option value="Default" selected="true">Default</option>
+            <option value="pgxseg">pgxseg</option>
+            <option value="seg">seg</option>
+        </param>>
+        <param name='biosample_id' type='text' optional='true' label='Identifiers of biosamples' />
+        <param name='individual_id' type='text' optional='true' label='Identifiers of individuals' />
+        <param name='filters' type='text' optional='true' label='Filters' />
+        <param name='codematches' type='boolean' checked='false' label='Whether to exclude samples from child concepts of the specified filters' />
+        <section name="advanced_settings" title="Advanced settings" expanded="false">
+            <param name='limit' type='integer' value='0' optional='true' label='Integer to specify the number of returned profiles' />  
+            <param name='skip' type='integer' value='0' optional='true' label='Integer specifying the number of profiles to skip' />
+            <param name='dataset' type='text' optional='true' label='Dataset to query from the Beacon response' />
+            <param name='num_cores' type='integer' value='1' optional='true' label='Number of cores used for the variant query' />
+            <param name='domain' type='text' value="http://progenetix.org" optional='true' label='Domain of the query data resource' />
+            <param name='entry_point' type='text' value="beacon" optional='true' label='Entry point of the Beacon v2 API' />
+        </section>>
+    </inputs>
+    <outputs>
+        <data name="output" format="tabular" label="${tool.name} on ${on_string}: data" />
+    </outputs>
+    <tests>
+    <test>
+        <param name="input_tree" value="input_tree.txt"/>
+        <param name="format" value="png"/>
+        <param name="dpi" value="100"/>
+        <param name="size" value="7"/>
+        <param name="pad" value="2"/>
+        <output name="png_output_image" file="png_image.png" />
+    </test>
+</tests>
+    <help><![CDATA[
+        pgxRpi is an R wrapper package for Progenetix REST API that leverages the capabilities of Beacon v2 specification.
+    ]]></help>
+</tool>
