@@ -1,15 +1,45 @@
-<tool id="pgxLoader" name="pgxRpi pgxLodaer" version="0.1.0+galaxy0" python_template_version="3.5" profile="21.05">
+<tool id="pgxLoader" name="pgxRpi pgxLodaer" version="0.1.0+galaxy0" profile="21.05">
     <requirements>
+        <requirement type="package" version="4.4.2">r-base</requirement>
         <requirement type="package" version="1.20">bioconductor-pgxrpi</requirement>
     </requirements>
     <command detect_errors="exit_code"><![CDATA[
-        Rscript '$run_pgxLodaer.R'
+        cat '$run_pgxLoader' &&
+        Rscript '$run_pgxLoader'
     ]]></command>
     <configfiles>
-        <configfile name='run_pgxLodaer.R'><![CDATA[
-            require('pgxRpi', quietly = TRUE)
+        <configfile name='run_pgxLoader'><![CDATA[
+            ## Setup R error handling to go to stderr
+            options(show.error.messages=F, error = function () { cat(geterrmessage(), file=stderr()); q("no", 1, F) })
 
-    ]]></configfile>
+            require('pgxRpi', quietly = TRUE)    
+        
+            real_output <- '$output'
+
+            #if '$type' != "g_variants" or real_output == "Default"
+                real_output <- NULL
+            #end if
+
+            biosample_ids <- '$biosample_id'
+            individual_ids <- '$individual_id'  
+            filters <- '$filter'
+
+            #if len(biosample_ids) == 0
+                biosample_ids <- NULL
+            #else
+                biosample_ids <- unlist(strsplit(biosample_ids,split=','))
+            #end if    
+
+            skip <- $advanced_settings.skip
+            
+            #if skip == 0 
+                skip <- NULL
+            #end if
+
+            result <- pgxLoader(type='biosamples',output=NULL,biosample_id=c("pgxbs-kftvki7h","pgxbs-kftvki7v"),individual_id=NULL,filters=NULL,codematches='$codematches')
+
+            write.table(data.frame(a=1,b=2), file='$pgxdata', quote=FALSE, col.names=TRUE, row.names=FALSE, sep = '\t')         
+        ]]></configfile>
     </configfiles>
     <inputs>
         <param name='type' type='select' label='Output data type'>
@@ -21,11 +51,11 @@
             <option value="cnv_fraction">CNV fraction per sample based on Progenetix data</option>
             <option value="sample_count">count of samples in Progenetix</option>
         </param>
-        <param name='output' type='select' optional="true" label='Output variant data format'>
+        <param name='output' type='select' value="Default" optional="true" label='Output variant data format'>
             <option value="Default" selected="true">Default</option>
             <option value="pgxseg">pgxseg</option>
             <option value="seg">seg</option>
-        </param>>
+        </param>
         <param name='biosample_id' type='text' optional='true' label='Identifiers of biosamples' />
         <param name='individual_id' type='text' optional='true' label='Identifiers of individuals' />
         <param name='filters' type='text' optional='true' label='Filters' />
@@ -37,22 +67,23 @@
             <param name='num_cores' type='integer' value='1' optional='true' label='Number of cores used for the variant query' />
             <param name='domain' type='text' value="http://progenetix.org" optional='true' label='Domain of the query data resource' />
             <param name='entry_point' type='text' value="beacon" optional='true' label='Entry point of the Beacon v2 API' />
-        </section>>
+        </section>
     </inputs>
     <outputs>
-        <data name="output" format="tabular" label="${tool.name} on ${on_string}: data" />
+        <data name="pgxdata" format="txt" label="${tool.name} on ${on_string}: data" />
     </outputs>
     <tests>
-    <test>
-        <param name="input_tree" value="input_tree.txt"/>
-        <param name="format" value="png"/>
-        <param name="dpi" value="100"/>
-        <param name="size" value="7"/>
-        <param name="pad" value="2"/>
-        <output name="png_output_image" file="png_image.png" />
-    </test>
-</tests>
+        <test>
+            <param name="type" value="biosamples"/>
+            <param name="biosample_id" value="pgxbs-kftvki7h,pgxbs-kftvki7v"/>
+            <output name="pgxdata" file="biosamples.txt" />
+
+        </test>
+    </tests>
     <help><![CDATA[
         pgxRpi is an R wrapper package for Progenetix REST API that leverages the capabilities of Beacon v2 specification.
     ]]></help>
+    <citations>
+        <citation type='doi'>10.18129/B9.bioc.pgxRpi</citation>
+    </citations>
 </tool>
