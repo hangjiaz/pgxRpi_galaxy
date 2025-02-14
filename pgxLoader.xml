@@ -4,7 +4,6 @@
         <requirement type="package" version="1.20">bioconductor-pgxrpi</requirement>
     </requirements>
     <command detect_errors="exit_code"><![CDATA[
-        cat '$run_pgxLoader' &&
         Rscript '$run_pgxLoader'
     ]]></command>
     <configfiles>
@@ -12,33 +11,34 @@
             ## Setup R error handling to go to stderr
             options(show.error.messages=F, error = function () { cat(geterrmessage(), file=stderr()); q("no", 1, F) })
 
-            require('pgxRpi', quietly = TRUE)    
+            require('pgxRpi')    
         
             real_output <- '$output'
 
-            #if '$type' != "g_variants" or real_output == "Default"
+            if ('$type' != "g_variants" | real_output == "Default"){
                 real_output <- NULL
-            #end if
+            }
 
-            biosample_ids <- '$biosample_id'
-            individual_ids <- '$individual_id'  
-            filters <- '$filter'
+            process_input_parameter <- function(param){
+                if (param == ""){
+                    param <- NULL
+                }
+                else{
+                    param <- unlist(strsplit(param,split=','))
+                }
+                return(param)   
+            }
 
-            #if len(biosample_ids) == 0
-                biosample_ids <- NULL
-            #else
-                biosample_ids <- unlist(strsplit(biosample_ids,split=','))
-            #end if    
+            biosample_ids <- process_input_parameter('$biosample_id')
+            individual_ids <- process_input_parameter('$individual_id')
+            filters <- process_input_parameter('$filters')
+            dataset <- process_input_parameter('$advanced_settings.dataset')            
 
-            skip <- $advanced_settings.skip
-            
-            #if skip == 0 
-                skip <- NULL
-            #end if
 
-            result <- pgxLoader(type='biosamples',output=NULL,biosample_id=c("pgxbs-kftvki7h","pgxbs-kftvki7v"),individual_id=NULL,filters=NULL,codematches='$codematches')
+            result <- pgxLoader(type='$type',output=real_output,biosample_id=biosample_ids,individual_id=individual_ids,filters=filters,
+            codematches='$codematches',skip=as.numeric($advanced_settings.skip),limit=as.numeric('$advanced_settings.limit'),dataset=dataset,domain='$advanced_settings.domain',entry_point='$advanced_settings.entry_point')
 
-            write.table(data.frame(a=1,b=2), file='$pgxdata', quote=FALSE, col.names=TRUE, row.names=FALSE, sep = '\t')         
+            write.table(result, file='$pgxdata', quote=FALSE, col.names=TRUE, row.names=FALSE, sep = '\t')         
         ]]></configfile>
     </configfiles>
     <inputs>
@@ -56,21 +56,20 @@
             <option value="pgxseg">pgxseg</option>
             <option value="seg">seg</option>
         </param>
-        <param name='biosample_id' type='text' optional='true' label='Identifiers of biosamples' />
-        <param name='individual_id' type='text' optional='true' label='Identifiers of individuals' />
-        <param name='filters' type='text' optional='true' label='Filters' />
+        <param name='biosample_id' type='text' optional='true' label='Identifiers of biosamples' help='Use commas to separate multiple IDs to enter. If the parameter type is "g_variants", only this search condition is supported.' />
+        <param name='individual_id' type='text' optional='true' label='Identifiers of individuals' help='Use commas to separate multiple IDs to enter'/>
+        <param name='filters' type='text' optional='true' label='Filters' help='Use commas to combine filters using AND logic when the parameter type is "individuals", "biosamples", "analyses"; OR logic when the parameter type is "cnv_frequency", "sample_count". Do not use multiple filters when the parameter type is "cnv_fraction".' />
         <param name='codematches' type='boolean' checked='false' label='Whether to exclude samples from child concepts of the specified filters' />
         <section name="advanced_settings" title="Advanced settings" expanded="false">
             <param name='limit' type='integer' value='0' optional='true' label='Integer to specify the number of returned profiles' />  
             <param name='skip' type='integer' value='0' optional='true' label='Integer specifying the number of profiles to skip' />
-            <param name='dataset' type='text' optional='true' label='Dataset to query from the Beacon response' />
-            <param name='num_cores' type='integer' value='1' optional='true' label='Number of cores used for the variant query' />
+            <param name='dataset' type='text' optional='true' label='Dataset to query from the Beacon response' help='Use commas to separate multiple datasets to enter' />
             <param name='domain' type='text' value="http://progenetix.org" optional='true' label='Domain of the query data resource' />
             <param name='entry_point' type='text' value="beacon" optional='true' label='Entry point of the Beacon v2 API' />
         </section>
     </inputs>
     <outputs>
-        <data name="pgxdata" format="txt" label="${tool.name} on ${on_string}: data" />
+        <data name="pgxdata" format="txt" label="${tool.name} for $type data" />
     </outputs>
     <tests>
         <test>
