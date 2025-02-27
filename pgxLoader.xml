@@ -34,12 +34,16 @@
             filters <- process_input_parameter('$filters')
             dataset <- process_input_parameter('$advanced_settings.dataset')            
 
-
-            result <- pgxLoader(type='$type',output=real_output,biosample_id=biosample_ids,individual_id=individual_ids,filters=filters,
-            codematches='$codematches',skip=as.numeric($advanced_settings.skip),limit=as.numeric('$advanced_settings.limit'),dataset=dataset,domain='$advanced_settings.domain',entry_point='$advanced_settings.entry_point')
-
+            ## adapt to old version of this package (1.2.0) 
+            if ('$type' == "filtering_terms"){
+                result <- data.frame(filters=pgxFilter())
+            } else{
+                result <- pgxLoader(type='$type',output=real_output,biosample_id=biosample_ids,individual_id=individual_ids,filters=filters,codematches='$codematches',skip=as.numeric($advanced_settings.skip),limit=as.numeric('$advanced_settings.limit'),dataset=dataset,domain='$advanced_settings.domain',entry_point='$advanced_settings.entry_point')
+            }
+ 
             append <- FALSE
 
+            ## adapt to tsv format
             if ('$type' == "cnv_frequency"){
                 metadata <- S4Vectors::mcols(result)
                 metadata_lines <- paste0("#group_id=",metadata[['filter']],";label=",metadata[['label']],";sample_count=",metadata[['sample_count']])
@@ -61,6 +65,7 @@
             <option value="cnv_frequency">precomputed CNV frequency data from Progenetix</option>
             <option value="cnv_fraction">CNV fraction per sample based on Progenetix data</option>
             <option value="sample_count">count of samples in Progenetix</option>
+            <option value="filtering_terms">All available filters in Progenetix</option>
         </param>
         <param name='biosample_id' type='text' optional='true' label='Identifiers of biosamples' help='Use commas to separate multiple IDs (e.g. pgxbs-m3io46hq,pgxbs-m3io41c2). If the output data type is "genomic variations", only this search condition is supported.' />
         <param name='individual_id' type='text' optional='true' label='Identifiers of individuals' help='Use commas to separate multiple IDs (e.g. pgxind-m3io3pzi,pgxind-m3io3mi3).'/>
