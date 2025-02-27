@@ -11,9 +11,9 @@
             ## Setup R error handling to go to stderr
             options(show.error.messages=F, error = function () { cat(geterrmessage(), file=stderr()); q("no", 1, F) })
 
-            require('pgxRpi')    
+            library('pgxRpi')    
         
-            real_output <- '$output'
+            real_output <- '$advanced_settings.output'
 
             if ('$type' != "g_variants" | real_output == "Default"){
                 real_output <- NULL
@@ -24,7 +24,7 @@
                     param <- NULL
                 }
                 else{
-                    param <- unlist(strsplit(param,split=','))
+                    param <- trimws(unlist(strsplit(param,split=',')))
                 }
                 return(param)   
             }
@@ -38,7 +38,18 @@
             result <- pgxLoader(type='$type',output=real_output,biosample_id=biosample_ids,individual_id=individual_ids,filters=filters,
             codematches='$codematches',skip=as.numeric($advanced_settings.skip),limit=as.numeric('$advanced_settings.limit'),dataset=dataset,domain='$advanced_settings.domain',entry_point='$advanced_settings.entry_point')
 
-            write.table(result, file='$pgxdata', quote=FALSE, col.names=TRUE, row.names=FALSE, sep = '\t')         
+            append <- FALSE
+
+            if ('$type' == "cnv_frequency"){
+                metadata <- S4Vectors::mcols(result)
+                metadata_lines <- paste0("#group_id=",metadata[['filter']],";label=",metadata[['label']],";sample_count=",metadata[['sample_count']])
+                write.table(metadata_lines,file='$pgxdata', quote=FALSE, col.names=FALSE, row.names=FALSE)
+                append <- TRUE
+            } else if ('$type' == "cnv_fraction"){
+                result <- cbind(analysis_id=rownames(result[["genome_cnv_frac"]]),result[["genome_cnv_frac"]],result[["chr_cnv_frac"]],result[["arm_cnv_frac"]])
+            }
+
+            suppressWarnings(write.table(result, file='$pgxdata', append=append, quote=FALSE, col.names=TRUE, row.names=FALSE, sep = '\t'))        
         ]]></configfile>
     </configfiles>
     <inputs>
@@ -51,16 +62,16 @@
             <option value="cnv_fraction">CNV fraction per sample based on Progenetix data</option>
             <option value="sample_count">count of samples in Progenetix</option>
         </param>
-        <param name='output' type='select' value="Default" optional="true" label='Output variant data format'>
-            <option value="Default" selected="true">Default</option>
-            <option value="pgxseg">pgxseg</option>
-            <option value="seg">seg</option>
-        </param>
-        <param name='biosample_id' type='text' optional='true' label='Identifiers of biosamples' help='Use commas to separate multiple IDs to enter. If the parameter type is "g_variants", only this search condition is supported.' />
-        <param name='individual_id' type='text' optional='true' label='Identifiers of individuals' help='Use commas to separate multiple IDs to enter'/>
-        <param name='filters' type='text' optional='true' label='Filters' help='Use commas to combine filters using AND logic when the parameter type is "individuals", "biosamples", "analyses"; OR logic when the parameter type is "cnv_frequency", "sample_count". Do not use multiple filters when the parameter type is "cnv_fraction".' />
+        <param name='biosample_id' type='text' optional='true' label='Identifiers of biosamples' help='Use commas to separate multiple IDs (e.g. pgxbs-m3io46hq,pgxbs-m3io41c2). If the output data type is "genomic variations", only this search condition is supported.' />
+        <param name='individual_id' type='text' optional='true' label='Identifiers of individuals' help='Use commas to separate multiple IDs (e.g. pgxind-m3io3pzi,pgxind-m3io3mi3).'/>
+        <param name='filters' type='text' optional='true' label='Filters' help='Use commas to combine filters (e.g. NCIT:C3512,PMID:37084736) using AND logic when the output data type is "individuals", "biosamples", "analyses"; OR logic when the output data type is "precomputed CNV frequency", "count of samples". Do not use multiple filters when the output data type is "CNV fraction".' />
         <param name='codematches' type='boolean' checked='false' label='Whether to exclude samples from child concepts of the specified filters' />
         <section name="advanced_settings" title="Advanced settings" expanded="false">
+            <param name='output' type='select' value="Default" optional="true" label='Variant data format'>
+                <option value="Default" selected="true">Default</option>
+                <option value="pgxseg">pgxseg</option>
+                <option value="seg">seg</option>
+            </param>
             <param name='limit' type='integer' value='0' optional='true' label='Integer to specify the number of returned profiles' />  
             <param name='skip' type='integer' value='0' optional='true' label='Integer specifying the number of profiles to skip' />
             <param name='dataset' type='text' optional='true' label='Dataset to query from the Beacon response' help='Use commas to separate multiple datasets to enter' />
@@ -74,9 +85,8 @@
     <tests>
         <test>
             <param name="type" value="biosamples"/>
-            <param name="biosample_id" value="pgxbs-kftvki7h,pgxbs-kftvki7v"/>
+            <param name="biosample_id" value="pgxbs-kftvki7h"/>
             <output name="pgxdata" file="biosamples.txt" />
-
         </test>
     </tests>
     <help><![CDATA[
